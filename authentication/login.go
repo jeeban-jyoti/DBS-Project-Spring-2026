@@ -24,7 +24,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	var user UserDBData
 	err = database.DB.QueryRow(
-		"SELECT email, passwordHash, role, name FROM users WHERE email = ?",
+		"SELECT email, passwordHash, type, name FROM users WHERE email = ?",
 		u.Email,
 	).Scan(&user.email, &user.password, &user.role, &user.name)
 
