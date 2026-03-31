@@ -1,12 +1,14 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/database"
+	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/router"
 	"github.com/joho/godotenv"
 )
 
@@ -25,28 +27,17 @@ func main() {
 		DBName: os.Getenv("DB_NAME"),
 	}
 
-	db, err := sql.Open("mysql", cfg.FormatDSN())
-	if err != nil {
+	database.InitDB(cfg)
+
+	//dummy check for using the variable
+	if err := database.DB.Ping(); err != nil {
 		log.Fatal(err)
-	}
-	defer db.Close()
-
-	rows, err := db.Query("SHOW TABLES")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var tableName string
-
-		err := rows.Scan(&tableName)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Println("Table:", tableName)
 	}
 
 	fmt.Println("Connected to DB!")
+
+	http.HandleFunc("/api/v1/", router.Route)
+
+	fmt.Println("Server running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
