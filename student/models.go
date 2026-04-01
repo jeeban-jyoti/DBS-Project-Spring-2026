@@ -8,3 +8,18 @@ type Book struct {
 	Status   string `json:"status"`
 	Quantity int    `json:"quantity"`
 }
+
+type AddToCartReq struct {
+	UserID   string `json:"userid"`
+	BookID   int    `json:"bookid"`
+	Quantity int    `json:"quantity"`
+}
+
+type RemoveFromCartReq struct {
+	UserID string `json:"userid"`
+	BookID int    `json:"bookid"`
+}
+
+type OrderPlaceReq struct {
+	UserID string `json:"userid"`
+}
