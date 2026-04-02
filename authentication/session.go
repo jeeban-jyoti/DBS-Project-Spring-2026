@@ -6,11 +6,16 @@ import (
 	"sync"
 )
 
+type SessionData struct {
+	Email string
+	Role  string
+}
+
 var store = struct {
-	m map[string]string
+	m map[string]SessionData
 	sync.RWMutex
 }{
-	m: make(map[string]string),
+	m: make(map[string]SessionData),
 }
 
 func GenerateSessionID() string {
@@ -19,13 +24,16 @@ func GenerateSessionID() string {
 	return hex.EncodeToString(b)
 }
 
-func Create(sessionID, email string) {
+func Create(sessionID, email, role string) {
 	store.Lock()
 	defer store.Unlock()
-	store.m[sessionID] = email
+	store.m[sessionID] = SessionData{
+		Email: email,
+		Role:  role,
+	}
 }
 
-func Get(sessionID string) (string, bool) {
+func Get(sessionID string) (SessionData, bool) {
 	store.RLock()
 	defer store.RUnlock()
 	val, ok := store.m[sessionID]

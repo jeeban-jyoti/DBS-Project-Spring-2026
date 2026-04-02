@@ -42,7 +42,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionID := GenerateSessionID()
-	Create(sessionID, user.email)
+	Create(sessionID, user.email, user.role)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",

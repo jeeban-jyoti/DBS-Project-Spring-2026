@@ -4,19 +4,23 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/authentication"
+	auth "github.com/jeeban-jyoti/DSB-Project-Spring-2026/authentication"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/student"
 )
 
 var publicRoutes = map[string]http.HandlerFunc{
-	"/api/v1/login":  authentication.Login,
-	"/api/v1/logout": authentication.Logout,
+	"/api/v1/login":  auth.Login,
+	"/api/v1/logout": auth.Logout,
 }
 
 var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/test": test,
 
-	"/api/v1/fetchBooks": student.FetchAllBooks,
+	"/api/v1/fetchBooks":      student.FetchAllBooks,
+	"api/v1/addToCart":        auth.RequireRole(auth.RoleStudent)(student.AddToCart),
+	"api/v1/removeFromCart":   auth.RequireRole(auth.RoleStudent)(student.RemoveFromCart),
+	"api/v1/placeBuyOrder":    auth.RequireRole(auth.RoleStudent)(student.PlaceBuyOrder),
+	"api/v1/placeBorrowOrder": auth.RequireRole(auth.RoleStudent)(student.PlaceBorrowOrder),
 }
 
 // test api
@@ -33,7 +37,7 @@ func Route(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if handler, ok := protectedRoutes[r.URL.Path]; ok {
-		authentication.RequireAuth(handler)(w, r)
+		auth.RequireAuth(handler)(w, r)
 		return
 	}
 
