@@ -6,6 +6,7 @@ import (
 
 	auth "github.com/jeeban-jyoti/DSB-Project-Spring-2026/authentication"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/student"
+	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/tickets"
 )
 
 var publicRoutes = map[string]http.HandlerFunc{
@@ -21,6 +22,12 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"api/v1/removeFromCart":   auth.RequireRole(auth.RoleStudent)(student.RemoveFromCart),
 	"api/v1/placeBuyOrder":    auth.RequireRole(auth.RoleStudent)(student.PlaceBuyOrder),
 	"api/v1/placeBorrowOrder": auth.RequireRole(auth.RoleStudent)(student.PlaceBorrowOrder),
+
+	"/api/v1/generateTicket":        auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.GenerateTicket),
+	"/api/v1/viewTickets":           tickets.ViewTickets,
+	"/api/v1/handleNewTicket":       auth.RequireRole(auth.RoleSupport)(tickets.HandleNewTickets),
+	"/api/v1/handleAssignedTicket":  auth.RequireRole(auth.RoleAdmin)(tickets.HandleAssignedTickets),
+	"/api/v1/handleInProcessTicket": auth.RequireRole(auth.RoleAdmin)(tickets.HandleInProcessTickets),
 }
 
 // test api
