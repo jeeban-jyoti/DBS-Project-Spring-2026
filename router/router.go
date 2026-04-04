@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/admin"
 	auth "github.com/jeeban-jyoti/DSB-Project-Spring-2026/authentication"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/student"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/superadmin"
@@ -36,6 +37,11 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/removeAdmin":       auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveAdmin),
 	"/api/v1/addSupportStaff":   auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddSupportStaff),
 	"/api/v1/removeSuppotStaff": auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveSupportStaff),
+
+	"/api/v1/addStudents":    auth.RequireRole(auth.RoleAdmin)(admin.AddStudents),
+	"/api/v1/removeStudents": auth.RequireRole(auth.RoleAdmin)(admin.RemoveStudents),
+	"/api/v1/addBooks":       auth.RequireRole(auth.RoleAdmin)(admin.AddBooks),
+	"/api/v1/removeBooks":    auth.RequireRole(auth.RoleAdmin)(admin.RemoveBooks),
 }
 
 // test api
