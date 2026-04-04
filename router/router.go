@@ -6,6 +6,7 @@ import (
 
 	auth "github.com/jeeban-jyoti/DSB-Project-Spring-2026/authentication"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/student"
+	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/superadmin"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/tickets"
 )
 
@@ -16,6 +17,8 @@ var publicRoutes = map[string]http.HandlerFunc{
 
 var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/test": test,
+
+	"/api/v1/changePassword": auth.ChangePassword,
 
 	"/api/v1/fetchBooks":      student.FetchAllBooks,
 	"api/v1/addToCart":        auth.RequireRole(auth.RoleStudent)(student.AddToCart),
@@ -28,6 +31,11 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/handleNewTicket":       auth.RequireRole(auth.RoleSupport)(tickets.HandleNewTickets),
 	"/api/v1/handleAssignedTicket":  auth.RequireRole(auth.RoleAdmin)(tickets.HandleAssignedTickets),
 	"/api/v1/handleInProcessTicket": auth.RequireRole(auth.RoleAdmin)(tickets.HandleInProcessTickets),
+
+	"/api/v1/addAdmin":          auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddAdmin),
+	"/api/v1/removeAdmin":       auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveAdmin),
+	"/api/v1/addSupportStaff":   auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddSupportStaff),
+	"/api/v1/removeSuppotStaff": auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveSupportStaff),
 }
 
 // test api

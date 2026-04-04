@@ -11,3 +11,8 @@ type UserDBData struct {
 	role     string
 	name     string
 }
+
+type PasswordChangeReq struct {
+	OldPassword string `json:"oldpassword"`
+	NewPassword string `json:"newpassword"`
+}
