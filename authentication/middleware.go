@@ -26,7 +26,6 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Attach to request
 		r.Header.Set("user_email", session.Email)
 		r.Header.Set("user_role", session.Role)
 

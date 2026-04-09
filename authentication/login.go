@@ -23,10 +23,27 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var user UserDBData
-	err = database.DB.QueryRow(
-		"SELECT email, passwordHash, type, name FROM users WHERE email = ?",
-		u.Email,
-	).Scan(&user.email, &user.password, &user.role, &user.name)
+
+	err = database.DB.QueryRow(`
+		SELECT 
+			u.email,
+			u.password_hash,
+			CONCAT(u.first_name, ' ', u.last_name) as name,
+			CASE 
+				WHEN sa.employee_id IS NOT NULL THEN 'superadmin'
+				WHEN a.employee_id IS NOT NULL THEN 'admin'
+				WHEN cs.employee_id IS NOT NULL THEN 'support'
+				WHEN s.student_id IS NOT NULL THEN 'student'
+				ELSE 'unknown'
+			END as role
+		FROM user u
+		LEFT JOIN student s ON u.user_id = s.student_id
+		LEFT JOIN employee e ON u.user_id = e.employee_id
+		LEFT JOIN customer_support cs ON e.employee_id = cs.employee_id
+		LEFT JOIN administrator a ON e.employee_id = a.employee_id
+		LEFT JOIN super_admin sa ON a.employee_id = sa.employee_id
+		WHERE u.email = ?
+	`, u.Email).Scan(&user.Email, &user.Password, &user.Name, &user.Role)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
@@ -36,13 +53,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Server error", http.StatusInternalServerError)
 		return
 	}
-	if u.Password != user.password {
+
+	if u.Password != user.Password {
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
 	sessionID := GenerateSessionID()
-	Create(sessionID, user.email, user.role)
+	Create(sessionID, user.Email, user.Role)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
@@ -53,6 +71,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "login successful",
+		"role":    user.Role,
 	})
 }
 
@@ -66,6 +85,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		Delete(cookie.Value)
 	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    "",
@@ -97,7 +117,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	var currentPassword string
 	err := database.DB.QueryRow(
-		"SELECT passwordHash FROM users WHERE email = ?",
+		"SELECT password_hash FROM user WHERE email = ?",
 		userEmail,
 	).Scan(&currentPassword)
 
@@ -116,7 +136,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = database.DB.Exec(
-		"UPDATE users SET passwordHash = ? WHERE email = ?",
+		"UPDATE user SET password_hash = ? WHERE email = ?",
 		req.NewPassword,
 		userEmail,
 	)
@@ -126,7 +146,20 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cookie, err := r.Cookie("session_id")
+	if err == nil {
+		Delete(cookie.Value)
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
+
 	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Password updated successfully",
+		"message": "Password updated successfully. Please login again.",
 	})
 }

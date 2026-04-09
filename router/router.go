@@ -21,11 +21,13 @@ var protectedRoutes = map[string]http.HandlerFunc{
 
 	"/api/v1/changePassword": auth.ChangePassword,
 
-	"/api/v1/fetchBooks":      student.FetchAllBooks,
-	"api/v1/addToCart":        auth.RequireRole(auth.RoleStudent)(student.AddToCart),
-	"api/v1/removeFromCart":   auth.RequireRole(auth.RoleStudent)(student.RemoveFromCart),
-	"api/v1/placeBuyOrder":    auth.RequireRole(auth.RoleStudent)(student.PlaceBuyOrder),
-	"api/v1/placeBorrowOrder": auth.RequireRole(auth.RoleStudent)(student.PlaceBorrowOrder),
+	"/api/v1/fetchBooks":       student.FetchAllBooks,
+	"/api/v1/fetchBook":        student.FetchBook,
+	"/api/v1/cart":             auth.RequireRole(auth.RoleStudent)(student.ShowCart),
+	"/api/v1/addToCart":        auth.RequireRole(auth.RoleStudent)(student.AddToCart),
+	"/api/v1/removeFromCart":   auth.RequireRole(auth.RoleStudent)(student.RemoveFromCart),
+	"/api/v1/placeBuyOrder":    auth.RequireRole(auth.RoleStudent)(student.PlaceBuyOrder),
+	"/api/v1/placeBorrowOrder": auth.RequireRole(auth.RoleStudent)(student.PlaceBorrowOrder),
 
 	"/api/v1/generateTicket":        auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.GenerateTicket),
 	"/api/v1/viewTickets":           tickets.ViewTickets,

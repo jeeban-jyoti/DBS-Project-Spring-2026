@@ -6,10 +6,10 @@ type UserHTTPReq struct {
 }
 
 type UserDBData struct {
-	email    string
-	password string
-	role     string
-	name     string
+	Email    string
+	Password string
+	Role     string
+	Name     string
 }
 
 type PasswordChangeReq struct {
