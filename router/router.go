@@ -6,6 +6,7 @@ import (
 
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/admin"
 	auth "github.com/jeeban-jyoti/DSB-Project-Spring-2026/authentication"
+	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/orders"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/student"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/superadmin"
 	"github.com/jeeban-jyoti/DSB-Project-Spring-2026/tickets"
@@ -21,13 +22,18 @@ var protectedRoutes = map[string]http.HandlerFunc{
 
 	"/api/v1/changePassword": auth.ChangePassword,
 
-	"/api/v1/fetchBooks":       student.FetchAllBooks,
-	"/api/v1/fetchBook":        student.FetchBook,
-	"/api/v1/cart":             auth.RequireRole(auth.RoleStudent)(student.ShowCart),
-	"/api/v1/addToCart":        auth.RequireRole(auth.RoleStudent)(student.AddToCart),
-	"/api/v1/removeFromCart":   auth.RequireRole(auth.RoleStudent)(student.RemoveFromCart),
-	"/api/v1/placeBuyOrder":    auth.RequireRole(auth.RoleStudent)(student.PlaceBuyOrder),
-	"/api/v1/placeBorrowOrder": auth.RequireRole(auth.RoleStudent)(student.PlaceBorrowOrder),
+	"/api/v1/fetchBooks":     student.FetchAllBooks,
+	"/api/v1/fetchBook":      student.FetchBook,
+	"/api/v1/cart":           auth.RequireRole(auth.RoleStudent)(student.ShowCart),
+	"/api/v1/addToCart":      auth.RequireRole(auth.RoleStudent)(student.AddToCart),
+	"/api/v1/removeFromCart": auth.RequireRole(auth.RoleStudent)(student.RemoveFromCart),
+
+	"/api/v1/placeBuyOrder":     auth.RequireRole(auth.RoleStudent)(orders.PlaceBuyOrder),
+	"/api/v1/placeBorrowOrder":  auth.RequireRole(auth.RoleStudent)(orders.PlaceBorrowOrder),
+	"/api/v1/showMyOrders":      auth.RequireRole(auth.RoleStudent)(orders.ShowOrders),
+	"/api/v1/showAllOrders":     auth.RequireRole(auth.RoleSupport)(orders.ShowAllOrders),
+	"/api/v1/cancelOrder":       auth.RequireRole(auth.RoleStudent)(orders.GenerateOrderCancellation),
+	"/api/v1/changeOrderStatus": auth.RequireRole(auth.RoleSupport)(orders.ChangeOrderStatus),
 
 	"/api/v1/generateTicket":        auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.GenerateTicket),
 	"/api/v1/viewTickets":           tickets.ViewTickets,

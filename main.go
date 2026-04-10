@@ -12,6 +12,22 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight requests
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// Load .env file
 	err := godotenv.Load()
@@ -40,4 +56,10 @@ func main() {
 
 	fmt.Println("Server running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+	// 	mux := http.NewServeMux()
+	// mux.HandleFunc("/api/v1/", router.Route)
+
+	// handler := enableCORS(mux)
+
+	// log.Fatal(http.ListenAndServe(":8080", handler))
 }
