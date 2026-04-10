@@ -454,3 +454,115 @@ func ChangeOrderStatus(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(map[string]string{"message": "Order status updated successfully"})
 }
+
+// ReturnBorrowedBooks: POST /api/v1/returnBorrowedBooks
+// Parameter: order_id via query string
+func ReturnBorrowedBook(w http.ResponseWriter, r *http.Request) {
+	// 1. Parse input
+	orderIDStr := r.URL.Query().Get("order_id")
+	orderID, err := strconv.Atoi(orderIDStr)
+	if err != nil {
+		http.Error(w, "Invalid Order ID", http.StatusBadRequest)
+		return
+	}
+
+	// Start Transaction
+	tx, err := database.DB.Begin()
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// 2. Verify order exists and is eligible for return
+	var status string
+	err = tx.QueryRow(`SELECT status FROM `+"`order`"+` WHERE order_id = ?`, orderID).Scan(&status)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Order not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if status == "canceled" {
+		http.Error(w, "Cannot return items from a cancelled order", http.StatusBadRequest)
+		return
+	}
+	if status == "returned" {
+		http.Error(w, "This order has already been returned", http.StatusBadRequest)
+		return
+	}
+
+	// 3. COLLECT all borrowed books in this order
+	type bookReturn struct {
+		bookID int
+		qty    int
+	}
+	var itemsToReturn []bookReturn
+
+	rows, err := tx.Query(`
+		SELECT book_id, quantity 
+		FROM order_item 
+		WHERE order_id = ? AND purchase_type = 'rent'
+	`, orderID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve borrowed items", http.StatusInternalServerError)
+		return
+	}
+
+	for rows.Next() {
+		var br bookReturn
+		if err := rows.Scan(&br.bookID, &br.qty); err != nil {
+			rows.Close()
+			http.Error(w, "Data error", http.StatusInternalServerError)
+			return
+		}
+		itemsToReturn = append(itemsToReturn, br)
+	}
+
+	// CRITICAL: Close rows before starting UPDATEs to avoid "busy buffer"
+	rows.Close()
+
+	if len(itemsToReturn) == 0 {
+		http.Error(w, "No borrowed books found in this order to return", http.StatusBadRequest)
+		return
+	}
+
+	// 4. PROCESS: Add full quantities back to the book table
+	for _, item := range itemsToReturn {
+		_, err = tx.Exec(`
+			UPDATE book 
+			SET quantity = quantity + ? 
+			WHERE book_id = ?
+		`, item.qty, item.bookID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to return book ID %d", item.bookID), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// 5. Mark the entire order as 'returned'
+	_, err = tx.Exec(`
+		UPDATE `+"`order`"+` 
+		SET status = 'returned', fulfilled_date = NOW() 
+		WHERE order_id = ?
+	`, orderID)
+	if err != nil {
+		http.Error(w, "Failed to update order status to returned", http.StatusInternalServerError)
+		return
+	}
+
+	// Commit Transaction
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Failed to finalize return", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":        "All borrowed books from this order have been returned",
+		"order_id":       orderID,
+		"books_returned": len(itemsToReturn),
+	})
+}

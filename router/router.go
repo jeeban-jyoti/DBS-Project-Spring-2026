@@ -34,6 +34,7 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/showAllOrders":     auth.RequireRole(auth.RoleSupport)(orders.ShowAllOrders),
 	"/api/v1/cancelOrder":       auth.RequireRole(auth.RoleStudent)(orders.GenerateOrderCancellation),
 	"/api/v1/changeOrderStatus": auth.RequireRole(auth.RoleSupport)(orders.ChangeOrderStatus),
+	"/api/v1/bookReturn":        auth.RequireRole(auth.RoleSupport)(orders.ReturnBorrowedBook),
 
 	"/api/v1/generateTicket":        auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.GenerateTicket),
 	"/api/v1/viewTickets":           tickets.ViewTickets,
