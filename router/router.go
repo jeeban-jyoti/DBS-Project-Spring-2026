@@ -42,10 +42,10 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/handleNewTicket":            auth.RequireRole(auth.RoleSupport)(tickets.AssignTicket),
 	"/api/v1/changeAssignedTicketStatus": auth.RequireRole(auth.RoleAdmin)(tickets.ChangeTicketStatus),
 
-	"/api/v1/addAdmin":          auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddAdmin),
-	"/api/v1/removeAdmin":       auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveAdmin),
-	"/api/v1/addSupportStaff":   auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddSupportStaff),
-	"/api/v1/removeSuppotStaff": auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveSupportStaff),
+	"/api/v1/addAdmin":           auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddAdmin),
+	"/api/v1/removeAdmin":        auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveAdmin),
+	"/api/v1/addSupportStaff":    auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddSupportStaff),
+	"/api/v1/removeSupportStaff": auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveSupportStaff),
 
 	"/api/v1/addStudents":    auth.RequireRole(auth.RoleAdmin)(admin.AddStudents),
 	"/api/v1/removeStudents": auth.RequireRole(auth.RoleAdmin)(admin.RemoveStudents),

@@ -22,12 +22,7 @@ func generatePassword(length int) string {
 }
 
 func AddAdmin(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req AddUserReq
+	var req AddEmployeeReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -35,15 +30,49 @@ func AddAdmin(w http.ResponseWriter, r *http.Request) {
 
 	password := generatePassword(10)
 
-	_, err := database.DB.Exec(
-		"INSERT INTO users (email, passwordHash, type, name) VALUES (?, ?, ?, ?)",
-		req.Email, password, "admin", req.Name,
-	)
-
+	tx, err := database.DB.Begin()
 	if err != nil {
-		http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Transaction error", http.StatusInternalServerError)
 		return
 	}
+	defer tx.Rollback()
+
+	// 1. Insert into user
+	res, err := tx.Exec(`
+		INSERT INTO user (first_name, last_name, email, address, phone, password_hash)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, req.FirstName, req.LastName, req.Email, req.Address, req.Phone, password)
+
+	if err != nil {
+		http.Error(w, "User insert failed", http.StatusInternalServerError)
+		return
+	}
+
+	userID, _ := res.LastInsertId()
+
+	// 2. Insert into employee
+	_, err = tx.Exec(`
+		INSERT INTO employee (employee_id, gender, salary, aadhaar_number)
+		VALUES (?, ?, ?, ?)
+	`, userID, req.Gender, req.Salary, req.AadhaarNumber)
+
+	if err != nil {
+		http.Error(w, "Employee insert failed", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Insert into administrator
+	_, err = tx.Exec(`
+		INSERT INTO administrator (employee_id)
+		VALUES (?)
+	`, userID)
+
+	if err != nil {
+		http.Error(w, "Admin insert failed", http.StatusInternalServerError)
+		return
+	}
+
+	tx.Commit()
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"message":  "Admin added",
@@ -52,43 +81,30 @@ func AddAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveAdmin(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Only DELETE allowed", http.StatusMethodNotAllowed)
+	empID := r.URL.Query().Get("empid")
+	if empID == "" {
+		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
 
-	email := r.URL.Query().Get("email")
-	if email == "" {
-		http.Error(w, "Email required", http.StatusBadRequest)
-		return
-	}
-
-	res, err := database.DB.Exec(
-		"DELETE FROM users WHERE email = ? AND type = 'admin'",
-		email,
-	)
-
+	tx, err := database.DB.Begin()
 	if err != nil {
-		http.Error(w, "DB error", http.StatusInternalServerError)
+		http.Error(w, "Transaction error", http.StatusInternalServerError)
 		return
 	}
+	defer tx.Rollback()
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		http.Error(w, "Admin not found", http.StatusNotFound)
-		return
-	}
+	tx.Exec(`DELETE FROM administrator WHERE employee_id = ?`, empID)
+	tx.Exec(`DELETE FROM employee WHERE employee_id = ?`, empID)
+	tx.Exec(`DELETE FROM user WHERE user_id = ?`, empID)
+
+	tx.Commit()
 
 	w.Write([]byte("Admin removed successfully"))
 }
 
 func AddSupportStaff(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req AddUserReq
+	var req AddEmployeeReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -96,15 +112,42 @@ func AddSupportStaff(w http.ResponseWriter, r *http.Request) {
 
 	password := generatePassword(10)
 
-	_, err := database.DB.Exec(
-		"INSERT INTO users (email, passwordHash, type, name) VALUES (?, ?, ?, ?)",
-		req.Email, password, "support", req.Name,
-	)
+	tx, _ := database.DB.Begin()
+	defer tx.Rollback()
+
+	res, err := tx.Exec(`
+		INSERT INTO user (first_name, last_name, email, address, phone, password_hash)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, req.FirstName, req.LastName, req.Email, req.Address, req.Phone, password)
 
 	if err != nil {
-		http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "User insert failed", http.StatusInternalServerError)
 		return
 	}
+
+	userID, _ := res.LastInsertId()
+
+	_, err = tx.Exec(`
+		INSERT INTO employee (employee_id, gender, salary, aadhaar_number)
+		VALUES (?, ?, ?, ?)
+	`, userID, req.Gender, req.Salary, req.AadhaarNumber)
+
+	if err != nil {
+		http.Error(w, "Employee insert failed", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO customer_support (employee_id)
+		VALUES (?)
+	`, userID)
+
+	if err != nil {
+		http.Error(w, "Support insert failed", http.StatusInternalServerError)
+		return
+	}
+
+	tx.Commit()
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"message":  "Support staff added",
@@ -113,32 +156,16 @@ func AddSupportStaff(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveSupportStaff(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Only DELETE allowed", http.StatusMethodNotAllowed)
-		return
-	}
+	empID := r.URL.Query().Get("empid")
 
-	email := r.URL.Query().Get("email")
-	if email == "" {
-		http.Error(w, "Email required", http.StatusBadRequest)
-		return
-	}
+	tx, _ := database.DB.Begin()
+	defer tx.Rollback()
 
-	res, err := database.DB.Exec(
-		"DELETE FROM users WHERE email = ? AND type = 'support'",
-		email,
-	)
+	tx.Exec(`DELETE FROM customer_support WHERE employee_id = ?`, empID)
+	tx.Exec(`DELETE FROM employee WHERE employee_id = ?`, empID)
+	tx.Exec(`DELETE FROM user WHERE user_id = ?`, empID)
 
-	if err != nil {
-		http.Error(w, "DB error", http.StatusInternalServerError)
-		return
-	}
-
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		http.Error(w, "Support staff not found", http.StatusNotFound)
-		return
-	}
+	tx.Commit()
 
 	w.Write([]byte("Support staff removed successfully"))
 }
