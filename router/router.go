@@ -47,10 +47,29 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/addSupportStaff":    auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddSupportStaff),
 	"/api/v1/removeSupportStaff": auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveSupportStaff),
 
-	"/api/v1/addStudents":    auth.RequireRole(auth.RoleAdmin)(admin.AddStudents),
-	"/api/v1/removeStudents": auth.RequireRole(auth.RoleAdmin)(admin.RemoveStudents),
-	"/api/v1/addBooks":       auth.RequireRole(auth.RoleAdmin)(admin.AddBooks),
-	"/api/v1/removeBooks":    auth.RequireRole(auth.RoleAdmin)(admin.RemoveBooks),
+	"/api/v1/addUniversity":    auth.RequireRole(auth.RoleAdmin)(admin.AddUniversity),
+	"/api/v1/removeUniversity": auth.RequireRole(auth.RoleAdmin)(admin.RemoveUniversity),
+	"/api/v1/updateUniversity": auth.RequireRole(auth.RoleAdmin)(admin.UpdateUniversity),
+
+	"/api/v1/addBook":    auth.RequireRole(auth.RoleAdmin)(admin.AddBook),
+	"/api/v1/removeBook": auth.RequireRole(auth.RoleAdmin)(admin.RemoveBook),
+
+	"/api/v1/addDepartment":    auth.RequireRole(auth.RoleAdmin)(admin.AddDepartment),
+	"/api/v1/removeDepartment": auth.RequireRole(auth.RoleAdmin)(admin.RemoveDepartment),
+
+	"/api/v1/addCourse":    auth.RequireRole(auth.RoleAdmin)(admin.AddCourse),
+	"/api/v1/removeCourse": auth.RequireRole(auth.RoleAdmin)(admin.RemoveCourse),
+
+	"/api/v1/addInstructor":    auth.RequireRole(auth.RoleAdmin)(admin.AddInstructor),
+	"/api/v1/removeInstructor": auth.RequireRole(auth.RoleAdmin)(admin.RemoveInstructor),
+	"/api/v1/updateInstructor": auth.RequireRole(auth.RoleAdmin)(admin.UpdateInstructor),
+
+	"/api/v1/addStudent":    auth.RequireRole(auth.RoleAdmin)(admin.AddStudent),
+	"/api/v1/removeStudent": auth.RequireRole(auth.RoleAdmin)(admin.RemoveStudent),
+	"/api/v1/updateStudent": auth.RequireRole(auth.RoleAdmin)(admin.UpdateStudent),
+
+	"/api/v1/addSemester":    auth.RequireRole(auth.RoleAdmin)(admin.AddSemester),
+	"/api/v1/removeSemester": auth.RequireRole(auth.RoleAdmin)(admin.RemoveSemester),
 }
 
 // test api
