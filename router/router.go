@@ -36,11 +36,11 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/changeOrderStatus": auth.RequireRole(auth.RoleSupport)(orders.ChangeOrderStatus),
 	"/api/v1/bookReturn":        auth.RequireRole(auth.RoleSupport)(orders.ReturnBorrowedBook),
 
-	"/api/v1/generateTicket":        auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.GenerateTicket),
-	"/api/v1/viewTickets":           tickets.ViewTickets,
-	"/api/v1/handleNewTicket":       auth.RequireRole(auth.RoleSupport)(tickets.HandleNewTickets),
-	"/api/v1/handleAssignedTicket":  auth.RequireRole(auth.RoleAdmin)(tickets.HandleAssignedTickets),
-	"/api/v1/handleInProcessTicket": auth.RequireRole(auth.RoleAdmin)(tickets.HandleInProcessTickets),
+	"/api/v1/generateTicket":             auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.GenerateNewTicket),
+	"/api/v1/viewMyTickets":              auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.ShowGeneratedTickets),
+	"/api/v1/viewALLTickets":             auth.RequireRole(auth.RoleAdmin)(tickets.ShowALLTickets),
+	"/api/v1/handleNewTicket":            auth.RequireRole(auth.RoleSupport)(tickets.AssignTicket),
+	"/api/v1/changeAssignedTicketStatus": auth.RequireRole(auth.RoleAdmin)(tickets.ChangeTicketStatus),
 
 	"/api/v1/addAdmin":          auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddAdmin),
 	"/api/v1/removeAdmin":       auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveAdmin),
