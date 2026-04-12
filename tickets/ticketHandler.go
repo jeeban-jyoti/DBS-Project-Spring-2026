@@ -182,31 +182,30 @@ func ChangeTicketStatus(w http.ResponseWriter, r *http.Request) {
 
 // Helper to map database rows to TicketResponse
 func scanTicketRow(rows *sql.Rows) (TicketResponse, error) {
-	var tr TicketResponse
-	var tid int
-	var createdDate []byte
+    var tr TicketResponse
+    var createdDate []byte
 
-	err := rows.Scan(
-		&tid,
-		&tr.GeneratedBy,
-		&tr.Category,
-		&tr.Title,
-		&tr.Description,
-		&tr.SolutionDescription,
-		&createdDate,
-		&tr.CompletionDate,
-		&tr.Status,
-		&tr.AssignedAdminID,
-	)
-	if err != nil {
-		return tr, err
-	}
-	createdDateParsed, err := time.Parse("2006-01-02 15:04:05", string(createdDate))
-	if err != nil {
-		return tr, err
-	}
-	tr.CreatedDate = createdDateParsed.Format("2006-01-02 15:04:05")
-	return tr, nil
+    err := rows.Scan(
+        &tr.TicketID,
+        &tr.GeneratedBy,
+        &tr.Category,
+        &tr.Title,
+        &tr.Description,
+        &tr.SolutionDescription,
+        &createdDate,
+        &tr.CompletionDate,
+        &tr.Status,
+        &tr.AssignedAdminID,
+    )
+    if err != nil {
+        return tr, err
+    }
+    createdDateParsed, err := time.Parse("2006-01-02 15:04:05", string(createdDate))
+    if err != nil {
+        return tr, err
+    }
+    tr.CreatedDate = createdDateParsed.Format("2006-01-02 15:04:05")
+    return tr, nil
 }
 
 // 4. ShowGeneratedTickets: GET /api/v1/myTickets
@@ -253,7 +252,48 @@ func ShowGeneratedTickets(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tickets)
 }
 
-// 5. ShowALLTickets: GET /api/v1/admin/allTickets
+// 5a. ShowNewTickets: GET /api/v1/viewNewTickets (Support Staff only — new tickets for assignment)
+func ShowNewTickets(w http.ResponseWriter, r *http.Request) {
+	email := r.Header.Get("user_email")
+	if email == "" {
+		http.Error(w, "user_email header is required", http.StatusBadRequest)
+		return
+	}
+
+	_, err := getUserID(email)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT t.ticket_id, CONCAT(u.first_name, ' ', u.last_name), t.category, t.title, 
+		       t.description, t.solution_description, t.created_date, 
+		       t.completion_date, t.status, t.assigned_admin_id
+		FROM ticket t
+		JOIN user u ON t.created_by_user_id = u.user_id
+		WHERE t.status = 'new'
+		ORDER BY t.created_date ASC
+	`)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var tickets []TicketResponse
+	for rows.Next() {
+		ticket, err := scanTicketRow(rows)
+		if err != nil {
+			continue
+		}
+		tickets = append(tickets, ticket)
+	}
+
+	json.NewEncoder(w).Encode(tickets)
+}
+
+// 5b. ShowALLTickets: GET /api/v1/viewALLTickets (Admin only)
 func ShowALLTickets(w http.ResponseWriter, r *http.Request) {
 	// Even for admin, check if the user exists in the system
 	email := r.Header.Get("user_email")
