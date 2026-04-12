@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 
@@ -100,4 +101,46 @@ func UpdateUniversity(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "University updated successfully",
 	})
+}
+
+func ShowUniversities(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT university_id, name, address, rep_first_name, rep_last_name, rep_email, rep_phone
+		FROM university
+	`)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var universities []map[string]interface{}
+
+	for rows.Next() {
+		var id int
+		var name, address, repFirst, repLast, repEmail, repPhone sql.NullString
+
+		err := rows.Scan(&id, &name, &address, &repFirst, &repLast, &repEmail, &repPhone)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		universities = append(universities, map[string]interface{}{
+			"university_id":  id,
+			"name":           name.String,
+			"address":        address.String,
+			"rep_first_name": repFirst.String,
+			"rep_last_name":  repLast.String,
+			"rep_email":      repEmail.String,
+			"rep_phone":      repPhone.String,
+		})
+	}
+
+	json.NewEncoder(w).Encode(universities)
 }

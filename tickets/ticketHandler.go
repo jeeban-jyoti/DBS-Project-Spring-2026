@@ -44,7 +44,7 @@ func GenerateNewTicket(w http.ResponseWriter, r *http.Request) {
 	`, userID, req.Category, req.Title, req.Description)
 
 	if err != nil {
-		http.Error(w, "Failed to create ticket", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

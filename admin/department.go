@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"time"
@@ -368,6 +369,8 @@ func AddStudent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := res.LastInsertId()
+
+	fmt.Println(req.DOB)
 
 	// student
 	_, err = tx.Exec(`

@@ -22,8 +22,11 @@ var protectedRoutes = map[string]http.HandlerFunc{
 
 	"/api/v1/changePassword": auth.ChangePassword,
 
-	"/api/v1/fetchBooks":     student.FetchAllBooks,
-	"/api/v1/fetchBook":      student.FetchBook,
+	"/api/v1/fetchBooks":            auth.RequireRole(auth.RoleStudent)(student.FetchAllBooks),
+	"/api/v1/fetchBook":             auth.RequireRole(auth.RoleStudent)(student.FetchBook),
+	"/api/v1/fetchAllCategories":    auth.RequireRole(auth.RoleStudent)(student.FetchAllCategories),
+	"/api/v1/fetchAllSubcategories": auth.RequireRole(auth.RoleStudent)(student.FetchAllSubcategories),
+
 	"/api/v1/cart":           auth.RequireRole(auth.RoleStudent)(student.ShowCart),
 	"/api/v1/addToCart":      auth.RequireRole(auth.RoleStudent)(student.AddToCart),
 	"/api/v1/removeFromCart": auth.RequireRole(auth.RoleStudent)(student.RemoveFromCart),
@@ -47,9 +50,10 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/addSupportStaff":    auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddSupportStaff),
 	"/api/v1/removeSupportStaff": auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveSupportStaff),
 
-	"/api/v1/addUniversity":    auth.RequireRole(auth.RoleAdmin)(admin.AddUniversity),
-	"/api/v1/removeUniversity": auth.RequireRole(auth.RoleAdmin)(admin.RemoveUniversity),
-	"/api/v1/updateUniversity": auth.RequireRole(auth.RoleAdmin)(admin.UpdateUniversity),
+	"/api/v1/addUniversity":     auth.RequireRole(auth.RoleAdmin)(admin.AddUniversity),
+	"/api/v1/removeUniversity":  auth.RequireRole(auth.RoleAdmin)(admin.RemoveUniversity),
+	"/api/v1/updateUniversity":  auth.RequireRole(auth.RoleAdmin)(admin.UpdateUniversity),
+	"/api/v1/fetchUniversities": admin.ShowUniversities,
 
 	"/api/v1/addBook":    auth.RequireRole(auth.RoleAdmin)(admin.AddBook),
 	"/api/v1/removeBook": auth.RequireRole(auth.RoleAdmin)(admin.RemoveBook),

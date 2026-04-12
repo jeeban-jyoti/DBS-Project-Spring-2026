@@ -40,7 +40,7 @@ func AddToCart(w http.ResponseWriter, r *http.Request) {
 	`, cartID, req.BookID, req.Quantity)
 
 	if err != nil {
-		http.Error(w, "DB error", 500)
+		http.Error(w, err.Error(), 500)
 		return
 	}
 
