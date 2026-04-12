@@ -404,6 +404,61 @@ func UpdateInstructor(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Instructor updated"))
 }
 
+func FetchInstructors(w http.ResponseWriter, r *http.Request) {
+	// 1. Only allow GET requests
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 2. Execute Query with JOINs to get human-readable names
+	rows, err := database.DB.Query(`
+		SELECT 
+			i.instructor_id, 
+			i.first_name, 
+			i.last_name, 
+			u.name as university_name, 
+			d.name as department_name
+		FROM instructor i
+		JOIN university u ON i.university_id = u.university_id
+		JOIN department d ON i.department_id = d.department_id
+		ORDER BY i.last_name ASC
+	`)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// 3. Iterate through the results
+	var instructors []InstructorDetail
+
+	for rows.Next() {
+		var inst InstructorDetail
+		err := rows.Scan(
+			&inst.InstructorID,
+			&inst.FirstName,
+			&inst.LastName,
+			&inst.UniversityName,
+			&inst.DepartmentName,
+		)
+		if err != nil {
+			http.Error(w, "Data scan error", http.StatusInternalServerError)
+			return
+		}
+		instructors = append(instructors, inst)
+	}
+
+	// 4. Handle empty state (return empty list instead of null)
+	if instructors == nil {
+		instructors = []InstructorDetail{}
+	}
+
+	// 5. Return as JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(instructors)
+}
+
 // Student
 func AddStudent(w http.ResponseWriter, r *http.Request) {
 	var req StudentReq

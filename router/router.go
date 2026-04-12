@@ -67,10 +67,12 @@ var protectedRoutes = map[string]http.HandlerFunc{
 
 	"/api/v1/addCourse":    auth.RequireRole(auth.RoleAdmin)(admin.AddCourse),
 	"/api/v1/removeCourse": auth.RequireRole(auth.RoleAdmin)(admin.RemoveCourse),
+	"/api/v1/fetchCourses": auth.RequireRole(auth.RoleAdmin)(admin.FetchCourses),
 
 	"/api/v1/addInstructor":    auth.RequireRole(auth.RoleAdmin)(admin.AddInstructor),
 	"/api/v1/removeInstructor": auth.RequireRole(auth.RoleAdmin)(admin.RemoveInstructor),
 	"/api/v1/updateInstructor": auth.RequireRole(auth.RoleAdmin)(admin.UpdateInstructor),
+	"/api/v1/fetchInstructor":  auth.RequireRole(auth.RoleAdmin)(admin.FetchInstructors),
 
 	"/api/v1/addStudent":    auth.RequireRole(auth.RoleAdmin)(admin.AddStudent),
 	"/api/v1/removeStudent": auth.RequireRole(auth.RoleAdmin)(admin.RemoveStudent),

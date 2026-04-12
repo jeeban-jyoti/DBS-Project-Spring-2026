@@ -64,6 +64,14 @@ type InstructorReq struct {
 	DepartmentID int    `json:"department_id"`
 }
 
+type InstructorDetail struct {
+	InstructorID   int    `json:"instructor_id"`
+	FirstName      string `json:"first_name"`
+	LastName       string `json:"last_name"`
+	UniversityName string `json:"university_name"`
+	DepartmentName string `json:"department_name"`
+}
+
 type StudentReq struct {
 	FirstName    string `json:"first_name"`
 	LastName     string `json:"last_name"`
