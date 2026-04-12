@@ -50,6 +50,8 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/removeAdmin":        auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveAdmin),
 	"/api/v1/addSupportStaff":    auth.RequireRole(auth.RoleSuperAdmin)(superadmin.AddSupportStaff),
 	"/api/v1/removeSupportStaff": auth.RequireRole(auth.RoleSuperAdmin)(superadmin.RemoveSupportStaff),
+	"/api/v1/fetchAdmins":        auth.RequireRole(auth.RoleSuperAdmin, auth.RoleSupport, auth.RoleAdmin)(superadmin.FetchAdmins),
+	"/api/v1/fetchSupportStaffs": auth.RequireRole(auth.RoleSuperAdmin, auth.RoleSupport, auth.RoleAdmin)(superadmin.FetchSupportStaff),
 
 	"/api/v1/addUniversity":     auth.RequireRole(auth.RoleAdmin)(admin.AddUniversity),
 	"/api/v1/removeUniversity":  auth.RequireRole(auth.RoleAdmin)(admin.RemoveUniversity),
@@ -76,6 +78,7 @@ var protectedRoutes = map[string]http.HandlerFunc{
 
 	"/api/v1/addSemester":    auth.RequireRole(auth.RoleAdmin)(admin.AddSemester),
 	"/api/v1/removeSemester": auth.RequireRole(auth.RoleAdmin)(admin.RemoveSemester),
+	"/api/v1/fetchSemesters": auth.RequireRole(auth.RoleAdmin)(admin.FetchSemesters),
 }
 
 // test api
