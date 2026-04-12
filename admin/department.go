@@ -128,6 +128,49 @@ func RemoveDepartment(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Department removed successfully (orphan courses cleaned)"))
 }
 
+func GetAllDepartments(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT department_id, name
+		FROM department
+	`)
+	if err != nil {
+		http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type Department struct {
+		ID   int    `json:"department_id"`
+		Name string `json:"name"`
+	}
+
+	var departments []Department
+
+	for rows.Next() {
+		var d Department
+		if err := rows.Scan(&d.ID, &d.Name); err != nil {
+			http.Error(w, "Scan error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		departments = append(departments, d)
+	}
+
+	// Check for iteration error
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Row iteration error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return JSON response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(departments)
+}
+
 // Course
 func AddCourse(w http.ResponseWriter, r *http.Request) {
 	var req CourseReq

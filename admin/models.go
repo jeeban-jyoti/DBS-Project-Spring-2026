@@ -86,3 +86,13 @@ type AddSemesterReq struct {
 	UniversityID int    `json:"university_id"`
 	BookIDs      []int  `json:"book_ids"` // optional
 }
+
+type SemesterDetail struct {
+	SemID          int      `json:"sem_id"`
+	Year           int      `json:"year"`
+	Season         string   `json:"season"`
+	CourseName     string   `json:"course_name"`
+	InstructorName string   `json:"instructor_name"`
+	UniversityName string   `json:"university_name"`
+	Books          []string `json:"books"`
+}

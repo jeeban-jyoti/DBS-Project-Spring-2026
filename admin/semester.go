@@ -128,3 +128,70 @@ func RemoveSemester(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte("Semester deleted successfully"))
 }
+
+func FetchSemesters(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT 
+			s.sem_id,
+			s.year,
+			s.season,
+			c.name,
+			CONCAT(i.first_name, ' ', i.last_name) as instructor,
+			u.name as university
+		FROM semester s
+		JOIN course c ON s.course_id = c.course_id
+		JOIN instructor i ON s.instructor_id = i.instructor_id
+		JOIN university u ON s.university_id = u.university_id
+	`)
+	if err != nil {
+		http.Error(w, "DB error", 500)
+		return
+	}
+	defer rows.Close()
+
+	var semesters []SemesterDetail
+
+	for rows.Next() {
+		var sem SemesterDetail
+
+		err := rows.Scan(
+			&sem.SemID,
+			&sem.Year,
+			&sem.Season,
+			&sem.CourseName,
+			&sem.InstructorName,
+			&sem.UniversityName,
+		)
+		if err != nil {
+			http.Error(w, "Scan error", 500)
+			return
+		}
+
+		// 🔥 Fetch books for each semester
+		bookRows, _ := database.DB.Query(`
+			SELECT b.title
+			FROM semester_book sb
+			JOIN book b ON sb.book_id = b.book_id
+			WHERE sb.sem_id = ?
+		`, sem.SemID)
+
+		var books []string
+		for bookRows.Next() {
+			var title string
+			bookRows.Scan(&title)
+			books = append(books, title)
+		}
+		bookRows.Close()
+
+		sem.Books = books
+
+		semesters = append(semesters, sem)
+	}
+
+	json.NewEncoder(w).Encode(semesters)
+}

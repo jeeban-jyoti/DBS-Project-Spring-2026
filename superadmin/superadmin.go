@@ -169,3 +169,107 @@ func RemoveSupportStaff(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte("Support staff removed successfully"))
 }
+
+func FetchAdmins(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT 
+			u.user_id,
+			u.first_name,
+			u.last_name,
+			u.email,
+			u.address,
+			u.phone,
+			e.gender,
+			e.salary,
+			e.aadhaar_number
+		FROM administrator a
+		JOIN employee e ON a.employee_id = e.employee_id
+		JOIN user u ON u.user_id = e.employee_id
+	`)
+	if err != nil {
+		http.Error(w, "DB error", 500)
+		return
+	}
+	defer rows.Close()
+
+	var admins []EmployeeDetail
+
+	for rows.Next() {
+		var emp EmployeeDetail
+		err := rows.Scan(
+			&emp.EmployeeID,
+			&emp.FirstName,
+			&emp.LastName,
+			&emp.Email,
+			&emp.Address,
+			&emp.Phone,
+			&emp.Gender,
+			&emp.Salary,
+			&emp.AadhaarNumber,
+		)
+		if err != nil {
+			http.Error(w, "Scan error", 500)
+			return
+		}
+		admins = append(admins, emp)
+	}
+
+	json.NewEncoder(w).Encode(admins)
+}
+
+func FetchSupportStaff(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT 
+			u.user_id,
+			u.first_name,
+			u.last_name,
+			u.email,
+			u.address,
+			u.phone,
+			e.gender,
+			e.salary,
+			e.aadhaar_number
+		FROM customer_support cs
+		JOIN employee e ON cs.employee_id = e.employee_id
+		JOIN user u ON u.user_id = e.employee_id
+	`)
+	if err != nil {
+		http.Error(w, "DB error", 500)
+		return
+	}
+	defer rows.Close()
+
+	var staff []EmployeeDetail
+
+	for rows.Next() {
+		var emp EmployeeDetail
+		err := rows.Scan(
+			&emp.EmployeeID,
+			&emp.FirstName,
+			&emp.LastName,
+			&emp.Email,
+			&emp.Address,
+			&emp.Phone,
+			&emp.Gender,
+			&emp.Salary,
+			&emp.AadhaarNumber,
+		)
+		if err != nil {
+			http.Error(w, "Scan error", 500)
+			return
+		}
+		staff = append(staff, emp)
+	}
+
+	json.NewEncoder(w).Encode(staff)
+}
