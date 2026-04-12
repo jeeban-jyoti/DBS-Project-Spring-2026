@@ -22,7 +22,7 @@ var protectedRoutes = map[string]http.HandlerFunc{
 
 	"/api/v1/changePassword": auth.ChangePassword,
 
-	"/api/v1/fetchBooks":            auth.RequireRole(auth.RoleStudent)(student.FetchAllBooks),
+	"/api/v1/fetchBooks":            student.FetchAllBooks,
 	"/api/v1/fetchBook":             auth.RequireRole(auth.RoleStudent)(student.FetchBook),
 	"/api/v1/fetchAllCategories":    auth.RequireRole(auth.RoleStudent)(student.FetchAllCategories),
 	"/api/v1/fetchAllSubcategories": auth.RequireRole(auth.RoleStudent)(student.FetchAllSubcategories),
