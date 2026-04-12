@@ -14,7 +14,8 @@ import (
 
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173") 
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -29,7 +30,7 @@ func enableCORS(next http.Handler) http.Handler {
 }
 
 func main() {
-	// Load .env file
+	// 1. Load .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -45,21 +46,17 @@ func main() {
 
 	database.InitDB(cfg)
 
-	//dummy check for using the variable
 	if err := database.DB.Ping(); err != nil {
-		log.Fatal(err)
+		log.Fatal("Database Ping Failed: ", err)
 	}
 
 	fmt.Println("Connected to DB!")
 
-	http.HandleFunc("/api/v1/", router.Route)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/", router.Route)
+
+	handler := enableCORS(mux)
 
 	fmt.Println("Server running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-	// 	mux := http.NewServeMux()
-	// mux.HandleFunc("/api/v1/", router.Route)
-
-	// handler := enableCORS(mux)
-
-	// log.Fatal(http.ListenAndServe(":8080", handler))
+	log.Fatal(http.ListenAndServe(":8080", handler))
 }
