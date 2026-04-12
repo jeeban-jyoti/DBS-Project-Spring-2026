@@ -42,6 +42,7 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/generateTicket":             auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.GenerateNewTicket),
 	"/api/v1/viewMyTickets":              auth.RequireRole(auth.RoleStudent, auth.RoleSupport)(tickets.ShowGeneratedTickets),
 	"/api/v1/viewALLTickets":             auth.RequireRole(auth.RoleAdmin)(tickets.ShowALLTickets),
+	"/api/v1/viewNewTickets":             auth.RequireRole(auth.RoleSupport)(tickets.ShowNewTickets),
 	"/api/v1/handleNewTicket":            auth.RequireRole(auth.RoleSupport)(tickets.AssignTicket),
 	"/api/v1/changeAssignedTicketStatus": auth.RequireRole(auth.RoleAdmin)(tickets.ChangeTicketStatus),
 
