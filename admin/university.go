@@ -73,60 +73,27 @@ func UpdateUniversity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "University ID required", http.StatusBadRequest)
+		return
+	}
+
 	var req UpdateUniversityReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	// Build dynamic query
-	query := "UPDATE university SET "
-	args := []interface{}{}
+	// 🔥 Step 3: Update everything (clean query)
+	_, err := database.DB.Exec(`
+		UPDATE university
+		SET name=?, address=?, rep_first_name=?, rep_last_name=?, rep_email=?, rep_phone=?
+		WHERE university_id=?
+	`, req.Name, req.Address, req.RepFirstName, req.RepLastName, req.RepEmail, req.RepPhone, id)
 
-	if req.Name != nil {
-		query += "name = ?, "
-		args = append(args, *req.Name)
-	}
-	if req.Address != nil {
-		query += "address = ?, "
-		args = append(args, *req.Address)
-	}
-	if req.RepFirstName != nil {
-		query += "rep_first_name = ?, "
-		args = append(args, *req.RepFirstName)
-	}
-	if req.RepLastName != nil {
-		query += "rep_last_name = ?, "
-		args = append(args, *req.RepLastName)
-	}
-	if req.RepEmail != nil {
-		query += "rep_email = ?, "
-		args = append(args, *req.RepEmail)
-	}
-	if req.RepPhone != nil {
-		query += "rep_phone = ?, "
-		args = append(args, *req.RepPhone)
-	}
-
-	// Remove trailing comma
-	if len(args) == 0 {
-		http.Error(w, "No fields to update", http.StatusBadRequest)
-		return
-	}
-
-	query = query[:len(query)-2] // remove ", "
-	query += " WHERE university_id = ?"
-	args = append(args, req.UniversityID)
-
-	res, err := database.DB.Exec(query, args...)
 	if err != nil {
 		http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		http.Error(w, "University not found", http.StatusNotFound)
 		return
 	}
 

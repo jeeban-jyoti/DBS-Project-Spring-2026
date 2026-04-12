@@ -51,7 +51,7 @@ type CourseReq struct {
 	Name         string `json:"name"`
 	UniversityID int    `json:"university_id"`
 	Year         int    `json:"year"`
-	Semester     int    `json:"semester"`
+	Departments  []int  `json:"departments"`
 }
 
 type InstructorReq struct {

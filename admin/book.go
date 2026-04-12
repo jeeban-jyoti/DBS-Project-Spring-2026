@@ -32,17 +32,14 @@ func AddBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. INSERT BOOK
-	res, err := tx.Exec(`
-		INSERT INTO book (title, isbn, publisher, publication_date, edition, language, format, type, purchase_option, price, quantity, category_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`,
+	res, err := tx.Exec("INSERT INTO book (title, isbn, publisher, publication_date, edition, language, format, `type`, purchase_option, price, quantity, category_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		req.Title, req.ISBN, req.Publisher, req.PublicationDate,
 		req.Edition, req.Language, req.Format, req.Type,
 		req.PurchaseOption, req.Price, req.Quantity, categoryID,
 	)
 
 	if err != nil {
-		http.Error(w, "Book insert failed", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

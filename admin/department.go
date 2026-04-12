@@ -75,10 +75,38 @@ func RemoveDepartment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := database.DB.Exec(`
+	tx, err := database.DB.Begin()
+	if err != nil {
+		http.Error(w, "Transaction error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// 1. Delete mappings
+	_, err = tx.Exec(`
+		DELETE FROM course_department WHERE department_id = ?
+	`, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Delete orphan courses
+	_, err = tx.Exec(`
+		DELETE FROM course
+		WHERE course_id NOT IN (
+			SELECT DISTINCT course_id FROM course_department
+		)
+	`)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Delete department
+	res, err := tx.Exec(`
 		DELETE FROM department WHERE department_id = ?
 	`, id)
-
 	if err != nil {
 		http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -90,26 +118,93 @@ func RemoveDepartment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("Department removed successfully"))
+	// Commit
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Commit failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("Department removed successfully (orphan courses cleaned)"))
 }
 
 // Course
 func AddCourse(w http.ResponseWriter, r *http.Request) {
 	var req CourseReq
-	json.NewDecoder(r.Body).Decode(&req)
 
-	res, err := database.DB.Exec(`
-		INSERT INTO course (name, university_id, year, semester)
-		VALUES (?, ?, ?, ?)
-	`, req.Name, req.UniversityID, req.Year, req.Semester)
-
-	if err != nil {
-		http.Error(w, err.Error(), 500)
+	// Decode request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	id, _ := res.LastInsertId()
-	json.NewEncoder(w).Encode(map[string]interface{}{"course_id": id})
+	tx, err := database.DB.Begin()
+	if err != nil {
+		http.Error(w, "Transaction error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// ✅ Validate university exists
+	var exists int
+	err = tx.QueryRow(`
+		SELECT COUNT(*) FROM university WHERE university_id = ?
+	`, req.UniversityID).Scan(&exists)
+
+	if err != nil || exists == 0 {
+		http.Error(w, "Invalid university_id", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Insert course
+	res, err := tx.Exec(`
+		INSERT INTO course (name, university_id, year)
+		VALUES (?, ?, ?)
+	`, req.Name, req.UniversityID, req.Year)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	courseID64, _ := res.LastInsertId()
+	courseID := int(courseID64)
+
+	// 2. Insert course_department mappings
+	for _, deptID := range req.Departments {
+
+		// ✅ Validate department belongs to same university
+		err := tx.QueryRow(`
+			SELECT COUNT(*) FROM department 
+			WHERE department_id = ? AND university_id = ?
+		`, deptID, req.UniversityID).Scan(&exists)
+
+		if err != nil || exists == 0 {
+			http.Error(w, "Invalid department_id for this university", http.StatusBadRequest)
+			return
+		}
+
+		// Insert mapping
+		_, err = tx.Exec(`
+			INSERT INTO course_department (course_id, department_id)
+			VALUES (?, ?)
+		`, courseID, deptID)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Commit failed", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":   "Course added successfully",
+		"course_id": courseID,
+	})
 }
 
 func RemoveCourse(w http.ResponseWriter, r *http.Request) {
@@ -129,53 +224,74 @@ func RemoveCourse(w http.ResponseWriter, r *http.Request) {
 // Instructor
 func AddInstructor(w http.ResponseWriter, r *http.Request) {
 	var req InstructorReq
-	json.NewDecoder(r.Body).Decode(&req)
 
-	password := generatePassword(10)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", 400)
+		return
+	}
 
-	tx, _ := database.DB.Begin()
-	defer tx.Rollback()
+	// Optional: validate university exists
+	var exists int
+	err := database.DB.QueryRow(`
+		SELECT COUNT(*) FROM university WHERE university_id = ?
+	`, req.UniversityID).Scan(&exists)
 
-	res, err := tx.Exec(`
-		INSERT INTO user (first_name, last_name, email, address, phone, password_hash)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, req.FirstName, req.LastName, req.Email, req.Address, req.Phone, password)
+	if err != nil || exists == 0 {
+		http.Error(w, "Invalid university_id", 400)
+		return
+	}
+
+	// Optional: validate department belongs to university
+	err = database.DB.QueryRow(`
+		SELECT COUNT(*) FROM department 
+		WHERE department_id = ? AND university_id = ?
+	`, req.DepartmentID, req.UniversityID).Scan(&exists)
+
+	if err != nil || exists == 0 {
+		http.Error(w, "Invalid department_id", 400)
+		return
+	}
+
+	// ✅ Insert directly into instructor
+	res, err := database.DB.Exec(`
+		INSERT INTO instructor (first_name, last_name, university_id, department_id)
+		VALUES (?, ?, ?, ?)
+	`, req.FirstName, req.LastName, req.UniversityID, req.DepartmentID)
 
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 
-	userID, _ := res.LastInsertId()
+	id, _ := res.LastInsertId()
 
-	_, err = tx.Exec(`
-		INSERT INTO instructor (instructor_id, university_id, department_id)
-		VALUES (?, ?, ?)
-	`, userID, req.UniversityID, req.DepartmentID)
-
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	tx.Commit()
-
-	json.NewEncoder(w).Encode(map[string]string{
-		"message":  "Instructor added",
-		"password": password,
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":       "Instructor added",
+		"instructor_id": id,
 	})
 }
 
 func RemoveInstructor(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "Instructor ID required", 400)
+		return
+	}
 
-	tx, _ := database.DB.Begin()
-	defer tx.Rollback()
+	res, err := database.DB.Exec(`
+		DELETE FROM instructor WHERE instructor_id = ?
+	`, id)
 
-	tx.Exec(`DELETE FROM instructor WHERE instructor_id = ?`, id)
-	tx.Exec(`DELETE FROM user WHERE user_id = ?`, id)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 
-	tx.Commit()
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		http.Error(w, "Instructor not found", 404)
+		return
+	}
 
 	w.Write([]byte("Instructor removed"))
 }
@@ -184,22 +300,48 @@ func UpdateInstructor(w http.ResponseWriter, r *http.Request) {
 	var req InstructorReq
 	id := r.URL.Query().Get("id")
 
-	tx, _ := database.DB.Begin()
-	defer tx.Rollback()
+	if id == "" {
+		http.Error(w, "Instructor ID required", 400)
+		return
+	}
 
-	tx.Exec(`
-		UPDATE user 
-		SET first_name=?, last_name=?, email=?, address=?, phone=?
-		WHERE user_id=?
-	`, req.FirstName, req.LastName, req.Email, req.Address, req.Phone, id)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", 400)
+		return
+	}
 
-	tx.Exec(`
+	// ✅ Validate university exists
+	var exists int
+	err := database.DB.QueryRow(`
+		SELECT COUNT(*) FROM university WHERE university_id = ?
+	`, req.UniversityID).Scan(&exists)
+
+	if err != nil || exists == 0 {
+		http.Error(w, "Invalid university_id", 400)
+		return
+	}
+
+	// ✅ Validate department belongs to university
+	err = database.DB.QueryRow(`
+		SELECT COUNT(*) FROM department 
+		WHERE department_id = ? AND university_id = ?
+	`, req.DepartmentID, req.UniversityID).Scan(&exists)
+
+	if err != nil || exists == 0 {
+		http.Error(w, "Invalid department_id", 400)
+		return
+	}
+
+	_, err = database.DB.Exec(`
 		UPDATE instructor 
-		SET university_id=?, department_id=?
+		SET first_name=?, last_name=?, university_id=?, department_id=?
 		WHERE instructor_id=?
-	`, req.UniversityID, req.DepartmentID, id)
+	`, req.FirstName, req.LastName, req.UniversityID, req.DepartmentID, id)
 
-	tx.Commit()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 
 	w.Write([]byte("Instructor updated"))
 }
@@ -262,6 +404,7 @@ func RemoveStudent(w http.ResponseWriter, r *http.Request) {
 
 func UpdateStudent(w http.ResponseWriter, r *http.Request) {
 	var req StudentReq
+	json.NewDecoder(r.Body).Decode(&req)
 	id := r.URL.Query().Get("id")
 
 	tx, _ := database.DB.Begin()
