@@ -96,3 +96,11 @@ type SemesterDetail struct {
 	UniversityName string   `json:"university_name"`
 	Books          []string `json:"books"`
 }
+
+type CourseDetail struct {
+	CourseID       int      `json:"course_id"`
+	Name           string   `json:"name"`
+	Year           int      `json:"year"`
+	UniversityName string   `json:"university_name"`
+	Departments    []string `json:"departments"`
+}

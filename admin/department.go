@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -134,10 +135,26 @@ func GetAllDepartments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := database.DB.Query(`
-		SELECT department_id, name
-		FROM department
-	`)
+	// 🔥 Read query param
+	univID := r.URL.Query().Get("university_id")
+
+	var rows *sql.Rows
+	var err error
+
+	// 🔥 Conditional query
+	if univID != "" {
+		rows, err = database.DB.Query(`
+			SELECT department_id, name
+			FROM department
+			WHERE university_id = ?
+		`, univID)
+	} else {
+		rows, err = database.DB.Query(`
+			SELECT department_id, name
+			FROM department
+		`)
+	}
+
 	if err != nil {
 		http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -160,13 +177,11 @@ func GetAllDepartments(w http.ResponseWriter, r *http.Request) {
 		departments = append(departments, d)
 	}
 
-	// Check for iteration error
 	if err := rows.Err(); err != nil {
 		http.Error(w, "Row iteration error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Return JSON response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(departments)
 }
@@ -471,4 +486,70 @@ func UpdateStudent(w http.ResponseWriter, r *http.Request) {
 	tx.Commit()
 
 	w.Write([]byte("Student updated"))
+}
+
+func FetchCourses(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT 
+			c.course_id,
+			c.name,
+			c.year,
+			u.name
+		FROM course c
+		JOIN university u ON c.university_id = u.university_id
+	`)
+	if err != nil {
+		http.Error(w, "DB error", 500)
+		return
+	}
+	defer rows.Close()
+
+	var courses []CourseDetail
+
+	for rows.Next() {
+		var c CourseDetail
+
+		err := rows.Scan(
+			&c.CourseID,
+			&c.Name,
+			&c.Year,
+			&c.UniversityName,
+		)
+		if err != nil {
+			http.Error(w, "Scan error", 500)
+			return
+		}
+
+		// 🔥 Fetch departments for each course
+		deptRows, err := database.DB.Query(`
+			SELECT d.name
+			FROM course_department cd
+			JOIN department d ON cd.department_id = d.department_id
+			WHERE cd.course_id = ?
+		`, c.CourseID)
+
+		if err != nil {
+			http.Error(w, "Dept fetch error", 500)
+			return
+		}
+
+		var departments []string
+		for deptRows.Next() {
+			var name string
+			deptRows.Scan(&name)
+			departments = append(departments, name)
+		}
+		deptRows.Close()
+
+		c.Departments = departments
+
+		courses = append(courses, c)
+	}
+
+	json.NewEncoder(w).Encode(courses)
 }
