@@ -141,3 +141,106 @@ func RemoveBook(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte("Book deleted successfully"))
 }
+
+func UpdateBook(w http.ResponseWriter, r *http.Request) {
+	var req UpdateBookReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.BookID == 0 {
+		http.Error(w, "Book ID is required", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := database.DB.Begin()
+	if err != nil {
+		http.Error(w, "Transaction error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// 1. HANDLE CATEGORY
+	var categoryID int
+	err = tx.QueryRow(`SELECT category_id FROM category WHERE name = ?`, req.Category).Scan(&categoryID)
+	if err == sql.ErrNoRows {
+		res, _ := tx.Exec(`INSERT INTO category (name) VALUES (?)`, req.Category)
+		id, _ := res.LastInsertId()
+		categoryID = int(id)
+	} else if err != nil {
+		http.Error(w, "Category error", http.StatusInternalServerError)
+		return
+	}
+
+	// 2. UPDATE MAIN BOOK TABLE
+	res, err := tx.Exec(`UPDATE book SET 
+		title = ?, isbn = ?, publisher = ?, publication_date = ?, 
+		edition = ?, language = ?, format = ?, type = ?, 
+		purchase_option = ?, price = ?, quantity = ?, category_id = ? 
+		WHERE book_id = ?`,
+		req.Title, req.ISBN, req.Publisher, req.PublicationDate,
+		req.Edition, req.Language, req.Format, req.Type,
+		req.PurchaseOption, req.Price, req.Quantity, categoryID, req.BookID,
+	)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Book not found", http.StatusNotFound)
+		return
+	}
+
+	// 3. UPDATE AUTHORS (Delete old mappings, insert new ones)
+	tx.Exec(`DELETE FROM book_author WHERE book_id = ?`, req.BookID)
+	for _, name := range req.Authors {
+		var authorID int
+		err := tx.QueryRow(`SELECT author_id FROM author WHERE name = ?`, name).Scan(&authorID)
+		if err == sql.ErrNoRows {
+			res, _ := tx.Exec(`INSERT INTO author (name) VALUES (?)`, name)
+			id, _ := res.LastInsertId()
+			authorID = int(id)
+		}
+		tx.Exec(`INSERT INTO book_author (book_id, author_id) VALUES (?, ?)`, req.BookID, authorID)
+	}
+
+	// 4. UPDATE KEYWORDS (Delete old mappings, insert new ones)
+	tx.Exec(`DELETE FROM book_keyword WHERE book_id = ?`, req.BookID)
+	for _, kw := range req.Keywords {
+		var keywordID int
+		err := tx.QueryRow(`SELECT keyword_id FROM keyword WHERE keyword = ?`, kw).Scan(&keywordID)
+		if err == sql.ErrNoRows {
+			res, _ := tx.Exec(`INSERT INTO keyword (keyword) VALUES (?)`, kw)
+			id, _ := res.LastInsertId()
+			keywordID = int(id)
+		}
+		tx.Exec(`INSERT INTO book_keyword (book_id, keyword_id) VALUES (?, ?)`, req.BookID, keywordID)
+	}
+
+	// 5. UPDATE SUBCATEGORIES (Delete old mappings, insert new ones)
+	tx.Exec(`DELETE FROM book_subcategory WHERE book_id = ?`, req.BookID)
+	for _, sub := range req.Subcategories {
+		var subID int
+		err := tx.QueryRow(`SELECT subcategory_id FROM subcategory WHERE name = ?`, sub).Scan(&subID)
+		if err == sql.ErrNoRows {
+			res, _ := tx.Exec(`INSERT INTO subcategory (name, category_id) VALUES (?, ?)`, sub, categoryID)
+			id, _ := res.LastInsertId()
+			subID = int(id)
+		}
+		tx.Exec(`INSERT INTO book_subcategory (book_id, subcategory_id) VALUES (?, ?)`, req.BookID, subID)
+	}
+
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Book updated successfully",
+	})
+}

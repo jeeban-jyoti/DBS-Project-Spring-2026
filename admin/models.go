@@ -40,6 +40,26 @@ type AddBookReq struct {
 	Keywords      []string `json:"keywords"`
 }
 
+// Add this to your types section
+type UpdateBookReq struct {
+	BookID          int      `json:"book_id"` // Required to identify which book to update
+	Title           string   `json:"title"`
+	ISBN            string   `json:"isbn"`
+	Publisher       string   `json:"publisher"`
+	PublicationDate string   `json:"publication_date"`
+	Edition         string   `json:"edition"`
+	Language        string   `json:"language"`
+	Format          string   `json:"format"`
+	Type            string   `json:"type"`
+	PurchaseOption  string   `json:"purchase_option"`
+	Price           float64  `json:"price"`
+	Quantity        int      `json:"quantity"`
+	Category        string   `json:"category"`
+	Subcategories   []string `json:"subcategories"`
+	Authors         []string `json:"authors"`
+	Keywords        []string `json:"keywords"`
+}
+
 //Department
 
 type AddDepartmentReq struct {

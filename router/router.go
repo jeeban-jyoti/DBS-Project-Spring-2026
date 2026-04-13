@@ -60,6 +60,7 @@ var protectedRoutes = map[string]http.HandlerFunc{
 
 	"/api/v1/addBook":    auth.RequireRole(auth.RoleAdmin)(admin.AddBook),
 	"/api/v1/removeBook": auth.RequireRole(auth.RoleAdmin)(admin.RemoveBook),
+	"/api/v1/updateBook": auth.RequireRole(auth.RoleAdmin)(admin.UpdateBook),
 
 	"/api/v1/addDepartment":    auth.RequireRole(auth.RoleAdmin)(admin.AddDepartment),
 	"/api/v1/removeDepartment": auth.RequireRole(auth.RoleAdmin)(admin.RemoveDepartment),

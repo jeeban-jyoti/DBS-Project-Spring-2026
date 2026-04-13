@@ -36,6 +36,25 @@ type BookDetail struct {
 	Reviews []Review `json:"reviews"`
 }
 
+type BookFullResponse struct {
+	BookID          int      `json:"id"`
+	Title           string   `json:"title"`
+	ISBN            string   `json:"isbn"`
+	Publisher       string   `json:"publisher"`
+	PublicationDate string   `json:"publication_date"`
+	Edition         string   `json:"edition"`
+	Language        string   `json:"language"`
+	Format          string   `json:"format"`
+	Type            string   `json:"type"`
+	PurchaseOption  string   `json:"purchase_option"`
+	Price           float64  `json:"price"`
+	Quantity        int      `json:"quantity"`
+	Category        string   `json:"category"`
+	Subcategories   []string `json:"subcategories"`
+	Authors         []string `json:"authors"`
+	Keywords        []string `json:"keywords"`
+}
+
 type AddToCartReq struct {
 	BookID   int `json:"bookid"`
 	Quantity int `json:"quantity"`
