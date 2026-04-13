@@ -35,7 +35,6 @@ func FetchAllBooks(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN subcategory sc ON bs.subcategory_id = sc.subcategory_id
 		LEFT JOIN book_keyword bk ON b.book_id = bk.book_id
 		LEFT JOIN keyword k ON bk.keyword_id = k.keyword_id
-		WHERE b.quantity > 0
 	`
 
 	args := []interface{}{}
