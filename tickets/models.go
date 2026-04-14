@@ -34,7 +34,8 @@ type Ticket struct {
 
 type TicketResponse struct {
 	TicketID            int            `json:"ticket_id"`
-	GeneratedBy         string         `json:"generated_by"` // User's full name or email
+	GeneratedBy         string         `json:"generated_by"`
+	GeneratedByEmail    string         `json:"generated_by_email"`  
 	Category            string         `json:"category"`
 	Title               string         `json:"title"`
 	Description         string         `json:"description"`

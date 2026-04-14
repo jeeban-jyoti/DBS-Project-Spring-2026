@@ -142,14 +142,16 @@ func GetAllDepartments(w http.ResponseWriter, r *http.Request) {
 
 	if univID != "" {
 		rows, err = database.DB.Query(`
-			SELECT department_id, name, university_id
-			FROM department
-			WHERE university_id = ?
+			SELECT d.department_id, d.name, u.name
+			FROM department d
+			JOIN university u ON d.university_id = u.university_id
+			WHERE d.university_id = ?
 		`, univID)
 	} else {
 		rows, err = database.DB.Query(`
-			SELECT department_id, name, university_id
-			FROM department
+			SELECT d.department_id, d.name, u.name
+			FROM department d
+			JOIN university u ON d.university_id = u.university_id
 		`)
 	}
 
@@ -162,14 +164,14 @@ func GetAllDepartments(w http.ResponseWriter, r *http.Request) {
 	type Department struct {
 		ID           int    `json:"department_id"`
 		Name         string `json:"name"`
-		UniversityID int    `json:"university_id"`
+		UniversityName string    `json:"university_name"`
 	}
 
 	var departments []Department
 
 	for rows.Next() {
 		var d Department
-		if err := rows.Scan(&d.ID, &d.Name, &d.UniversityID); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.UniversityName); err != nil {
 			http.Error(w, "Scan error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}

@@ -188,6 +188,7 @@ func scanTicketRow(rows *sql.Rows) (TicketResponse, error) {
     err := rows.Scan(
         &tr.TicketID,
         &tr.GeneratedBy,
+		&tr.GeneratedByEmail,
         &tr.Category,
         &tr.Title,
         &tr.Description,
@@ -267,7 +268,7 @@ func ShowNewTickets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT t.ticket_id, CONCAT(u.first_name, ' ', u.last_name), t.category, t.title, 
+		SELECT t.ticket_id, CONCAT(u.first_name, ' ', u.last_name), u.email, t.category, t.title, 
 		       t.description, t.solution_description, t.created_date, 
 		       t.completion_date, t.status, t.assigned_admin_id
 		FROM ticket t
@@ -309,11 +310,12 @@ func ShowALLTickets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT t.ticket_id, CONCAT(u.first_name, ' ', u.last_name), t.category, t.title, 
+		SELECT t.ticket_id, CONCAT(u.first_name, ' ', u.last_name), u.email, t.category, t.title, 
 		       t.description, t.solution_description, t.created_date, 
 		       t.completion_date, t.status, t.assigned_admin_id
 		FROM ticket t
 		JOIN user u ON t.created_by_user_id = u.user_id
+		WHERE t.status != 'new'
 		ORDER BY t.created_date DESC
 	`)
 	if err != nil {
