@@ -84,13 +84,12 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/fetchSemesters": auth.RequireRole(auth.RoleAdmin)(admin.FetchSemesters),
 }
 
-// test api
 func test(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "hello from protected route")
 }
 
 func Route(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.URL.Path)
+	fmt.Println("Request Path:", r.URL.Path)
 
 	if handler, ok := publicRoutes[r.URL.Path]; ok {
 		handler(w, r)
@@ -98,7 +97,9 @@ func Route(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if handler, ok := protectedRoutes[r.URL.Path]; ok {
-		auth.RequireAuth(handler)(w, r)
+		finalHandler := auth.RequireAuth(auth.LogRequests(handler))
+
+		finalHandler(w, r)
 		return
 	}
 

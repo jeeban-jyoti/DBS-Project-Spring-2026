@@ -3,6 +3,7 @@ package student
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -131,15 +132,15 @@ func FetchBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use a temporary struct to handle the raw SQL GROUP_CONCAT strings
+	// Temporary struct to handle the raw SQL GROUP_CONCAT strings and NULLs
 	var raw struct {
 		BookFullResponse
 		Authors       sql.NullString
 		Subcategories sql.NullString
 		Keywords      sql.NullString
-		AvgRating     float64
 	}
 
+	// 1. Get Book details, Category, and Many-to-Many aggregates
 	err := database.DB.QueryRow(`
 		SELECT 
 			b.book_id, b.title, b.isbn, b.publisher, b.publication_date, 
@@ -168,11 +169,15 @@ func FetchBook(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		http.Error(w, "Book not found", http.StatusNotFound)
+		if err == sql.ErrNoRows {
+			http.Error(w, "Book not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
-	// Final Response Object
+	// Process the result into the final response object
 	response := raw.BookFullResponse
 	if raw.Authors.Valid {
 		response.Authors = strings.Split(raw.Authors.String, "|")
@@ -184,19 +189,26 @@ func FetchBook(w http.ResponseWriter, r *http.Request) {
 		response.Keywords = strings.Split(raw.Keywords.String, "|")
 	}
 
-	// Fetch Reviews
-	rows, err := database.DB.Query(`SELECT student_id, rating, review_text, review_date FROM review WHERE book_id = ?`, bookID)
-	if err == nil {
+	// 2. Fetch all individual reviews for this book
+	rows, err := database.DB.Query(`
+		SELECT student_id, rating, review_text, review_date 
+		FROM review 
+		WHERE book_id = ? 
+		ORDER BY review_date DESC
+	`, bookID)
+
+	if err != nil {
+		// We log the error but still return the book details
+		fmt.Printf("Error fetching reviews: %v\n", err)
+	} else {
 		defer rows.Close()
-		var reviews []Review
+		response.Reviews = []Review{} // Initialize to empty slice instead of null
 		for rows.Next() {
 			var rev Review
 			if err := rows.Scan(&rev.StudentID, &rev.Rating, &rev.Text, &rev.Date); err == nil {
-				reviews = append(reviews, rev)
+				response.Reviews = append(response.Reviews, rev)
 			}
 		}
-		// You can add the Reviews slice to your BookFullResponse struct or a wrapper
-		_ = reviews // Add to response wrapper if needed
 	}
 
 	w.Header().Set("Content-Type", "application/json")
