@@ -226,7 +226,7 @@ func ShowGeneratedTickets(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(userID)
 
 	rows, err := database.DB.Query(`
-		SELECT t.ticket_id, CONCAT(u.first_name, ' ', u.last_name), t.category, t.title, 
+		SELECT t.ticket_id, CONCAT(u.first_name, ' ', u.last_name), u.email, t.category, t.title, 
 		       t.description, t.solution_description, t.created_date, 
 		       t.completion_date, t.status, t.assigned_admin_id
 		FROM ticket t
