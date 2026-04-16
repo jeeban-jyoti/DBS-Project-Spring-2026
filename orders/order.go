@@ -566,3 +566,121 @@ func ReturnBorrowedBook(w http.ResponseWriter, r *http.Request) {
 		"books_returned": len(itemsToReturn),
 	})
 }
+
+func PlaceOrder(w http.ResponseWriter, r *http.Request) {
+	email := r.Header.Get("user_email")
+	if email == "" {
+		http.Error(w, "User email missing in header", http.StatusBadRequest)
+		return
+	}
+
+	studentID, err := getStudentID(email)
+	if err != nil {
+		http.Error(w, "Student not found", http.StatusNotFound)
+		return
+	}
+
+	tx, err := database.DB.Begin()
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// 1. Create Order
+	res, err := tx.Exec("INSERT INTO `order`(student_id, status) VALUES(?, 'new')", studentID)
+	if err != nil {
+		http.Error(w, "Failed to create order", http.StatusInternalServerError)
+		return
+	}
+	orderID, _ := res.LastInsertId()
+
+	// 2. Fetch cart items + purchase_option from book table
+	type orderItem struct {
+		bookID       int
+		qty          int
+		purchaseType string
+	}
+
+	var items []orderItem
+
+	rows, err := tx.Query(`
+		SELECT ci.book_id, ci.quantity, b.purchase_option
+		FROM cart c
+		JOIN cart_item ci ON c.cart_id = ci.cart_id
+		JOIN book b ON b.book_id = ci.book_id
+		WHERE c.student_id = ?
+	`, studentID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve cart", http.StatusInternalServerError)
+		return
+	}
+
+	for rows.Next() {
+		var item orderItem
+		if err := rows.Scan(&item.bookID, &item.qty, &item.purchaseType); err != nil {
+			rows.Close()
+			http.Error(w, "Data error", http.StatusInternalServerError)
+			return
+		}
+		items = append(items, item)
+	}
+	rows.Close()
+
+	if len(items) == 0 {
+		http.Error(w, "Cart is empty", http.StatusBadRequest)
+		return
+	}
+
+	// 3. Process items
+	for _, item := range items {
+
+		// Insert into order_item with dynamic purchase_type
+		_, err = tx.Exec(`
+			INSERT INTO order_item(order_id, book_id, quantity, purchase_type)
+			VALUES(?, ?, ?, ?)
+		`, orderID, item.bookID, item.qty, item.purchaseType)
+		if err != nil {
+			http.Error(w, "Failed to add item to order", http.StatusInternalServerError)
+			return
+		}
+
+		// Update stock
+		updateRes, err := tx.Exec(`
+			UPDATE book 
+			SET quantity = quantity - ? 
+			WHERE book_id = ? AND quantity >= ?
+		`, item.qty, item.bookID, item.qty)
+		if err != nil {
+			http.Error(w, "Database error updating stock", http.StatusInternalServerError)
+			return
+		}
+
+		rowsAffected, _ := updateRes.RowsAffected()
+		if rowsAffected == 0 {
+			http.Error(w, fmt.Sprintf("Book ID %d out of stock", item.bookID), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// 4. Clear cart
+	_, err = tx.Exec(`
+		DELETE ci FROM cart_item ci
+		JOIN cart c ON ci.cart_id = c.cart_id
+		WHERE c.student_id = ?
+	`, studentID)
+	if err != nil {
+		http.Error(w, "Failed to clear cart", http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Commit
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Failed to finalize order", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Order placed successfully",
+	})
+}

@@ -31,6 +31,7 @@ var protectedRoutes = map[string]http.HandlerFunc{
 	"/api/v1/addToCart":      auth.RequireRole(auth.RoleStudent)(student.AddToCart),
 	"/api/v1/removeFromCart": auth.RequireRole(auth.RoleStudent)(student.RemoveFromCart),
 
+	"/api/v1/placeOrder":        auth.RequireRole(auth.RoleStudent)(orders.PlaceOrder),
 	"/api/v1/placeBuyOrder":     auth.RequireRole(auth.RoleStudent)(orders.PlaceBuyOrder),
 	"/api/v1/placeBorrowOrder":  auth.RequireRole(auth.RoleStudent)(orders.PlaceBorrowOrder),
 	"/api/v1/showMyOrders":      auth.RequireRole(auth.RoleStudent)(orders.ShowOrders),

@@ -96,49 +96,70 @@ func RemoveBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, _ := database.DB.Begin()
+	tx, err := database.DB.Begin()
+	if err != nil {
+		http.Error(w, "Transaction error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	defer tx.Rollback()
 
-	// Delete mappings first
-	tx.Exec(`DELETE FROM book_author WHERE book_id = ?`, id)
-	tx.Exec(`DELETE FROM book_keyword WHERE book_id = ?`, id)
-	tx.Exec(`DELETE FROM book_subcategory WHERE book_id = ?`, id)
+	// ============================================================
+	// STEP 1: DELETE ALL REFERENCES (All tables from your SELECT list)
+	// ============================================================
 
-	// Delete book
-	res, _ := tx.Exec(`DELETE FROM book WHERE book_id = ?`, id)
+	// List of all tables that reference book_id
+	// We execute these in a slice to keep the code clean
+	dependencies := []string{
+		"cart_item",
+		"order_item",
+		"review",
+		"semester_book",
+		"book_author",
+		"book_keyword",
+		"book_subcategory",
+	}
 
-	rows, _ := res.RowsAffected()
+	for _, table := range dependencies {
+		query := "DELETE FROM " + table + " WHERE book_id = ?"
+		if _, err := tx.Exec(query, id); err != nil {
+			http.Error(w, "Error cleaning up table "+table+": "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// ============================================================
+	// STEP 2: DELETE THE ACTUAL BOOK
+	// ============================================================
+	res, err := tx.Exec(`DELETE FROM book WHERE book_id = ?`, id)
+	if err != nil {
+		http.Error(w, "Database error while deleting book: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		http.Error(w, "Error checking rows affected", http.StatusInternalServerError)
+		return
+	}
 	if rows == 0 {
 		http.Error(w, "Book not found", http.StatusNotFound)
 		return
 	}
 
-	// CLEANUP: AUTHORS
-	tx.Exec(`
-		DELETE FROM author
-		WHERE author_id NOT IN (SELECT DISTINCT author_id FROM book_author)
-	`)
+	// ============================================================
+	// STEP 3: CLEANUP ORPHANS
+	// ============================================================
+	tx.Exec(`DELETE FROM author WHERE author_id NOT IN (SELECT DISTINCT author_id FROM book_author)`)
+	tx.Exec(`DELETE FROM keyword WHERE keyword_id NOT IN (SELECT DISTINCT keyword_id FROM book_keyword)`)
+	tx.Exec(`DELETE FROM subcategory WHERE subcategory_id NOT IN (SELECT DISTINCT subcategory_id FROM book_subcategory)`)
+	tx.Exec(`DELETE FROM category WHERE category_id NOT IN (SELECT DISTINCT category_id FROM book)`)
 
-	// CLEANUP: KEYWORDS
-	tx.Exec(`
-		DELETE FROM keyword
-		WHERE keyword_id NOT IN (SELECT DISTINCT keyword_id FROM book_keyword)
-	`)
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
+		return
+	}
 
-	// CLEANUP: SUBCATEGORIES
-	tx.Exec(`
-		DELETE FROM subcategory
-		WHERE subcategory_id NOT IN (SELECT DISTINCT subcategory_id FROM book_subcategory)
-	`)
-
-	// CLEANUP: CATEGORY
-	tx.Exec(`
-		DELETE FROM category
-		WHERE category_id NOT IN (SELECT DISTINCT category_id FROM book)
-	`)
-
-	tx.Commit()
-
+	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Book deleted successfully"))
 }
 

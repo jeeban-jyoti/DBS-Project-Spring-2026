@@ -61,7 +61,7 @@ func LogRequests(next http.HandlerFunc) http.HandlerFunc {
 		email := r.Header.Get("user_email")
 		role := r.Header.Get("user_role")
 
-		fmt.Printf("Logging Request: User=%s, Role=%s, URL=%s\n", email, role, r.URL.Path)
+		// fmt.Printf("Logging Request: User=%s, Role=%s, URL=%s\n", email, role, r.URL.Path)
 
 		if email == "" || role == "" {
 			fmt.Println("Logging skipped: User email or role is empty")
