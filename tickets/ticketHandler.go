@@ -182,31 +182,31 @@ func ChangeTicketStatus(w http.ResponseWriter, r *http.Request) {
 
 // Helper to map database rows to TicketResponse
 func scanTicketRow(rows *sql.Rows) (TicketResponse, error) {
-    var tr TicketResponse
-    var createdDate []byte
+	var tr TicketResponse
+	var createdDate []byte
 
-    err := rows.Scan(
-        &tr.TicketID,
-        &tr.GeneratedBy,
+	err := rows.Scan(
+		&tr.TicketID,
+		&tr.GeneratedBy,
 		&tr.GeneratedByEmail,
-        &tr.Category,
-        &tr.Title,
-        &tr.Description,
-        &tr.SolutionDescription,
-        &createdDate,
-        &tr.CompletionDate,
-        &tr.Status,
-        &tr.AssignedAdminID,
-    )
-    if err != nil {
-        return tr, err
-    }
-    createdDateParsed, err := time.Parse("2006-01-02 15:04:05", string(createdDate))
-    if err != nil {
-        return tr, err
-    }
-    tr.CreatedDate = createdDateParsed.Format("2006-01-02 15:04:05")
-    return tr, nil
+		&tr.Category,
+		&tr.Title,
+		&tr.Description,
+		&tr.SolutionDescription,
+		&createdDate,
+		&tr.CompletionDate,
+		&tr.Status,
+		&tr.AssignedAdminID,
+	)
+	if err != nil {
+		return tr, err
+	}
+	createdDateParsed, err := time.Parse("2006-01-02 15:04:05", string(createdDate))
+	if err != nil {
+		return tr, err
+	}
+	tr.CreatedDate = createdDateParsed.Format("2006-01-02 15:04:05")
+	return tr, nil
 }
 
 // 4. ShowGeneratedTickets: GET /api/v1/myTickets
