@@ -19,7 +19,6 @@ func AddSemester(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Basic validation
 	if req.Year == 0 || req.Season == "" || req.CourseID == 0 || req.InstructorID == 0 {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
@@ -32,16 +31,20 @@ func AddSemester(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	// ✅ Validate course
 	var exists int
-	err = tx.QueryRow(`SELECT COUNT(*) FROM course WHERE course_id = ?`, req.CourseID).Scan(&exists)
+	err = tx.QueryRow(`SELECT COUNT(*) FROM university WHERE university_id = ?`, req.UniversityID).Scan(&exists)
+	if err != nil || exists == 0 {
+		http.Error(w, "Invalid university_id", http.StatusBadRequest)
+		return
+	}
+
+	err = tx.QueryRow(`SELECT COUNT(*) FROM course WHERE course_id = ? AND university_id = ?`, req.CourseID, req.UniversityID).Scan(&exists)
 	if err != nil || exists == 0 {
 		http.Error(w, "Invalid course_id", http.StatusBadRequest)
 		return
 	}
 
-	// ✅ Validate instructor
-	err = tx.QueryRow(`SELECT COUNT(*) FROM instructor WHERE instructor_id = ?`, req.InstructorID).Scan(&exists)
+	err = tx.QueryRow(`SELECT COUNT(*) FROM instructor WHERE instructor_id = ? AND university_id = ?`, req.InstructorID, req.UniversityID).Scan(&exists)
 	if err != nil || exists == 0 {
 		http.Error(w, "Invalid instructor_id", http.StatusBadRequest)
 		return

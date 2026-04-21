@@ -35,7 +35,6 @@ func AddDepartment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Validate university exists
 	var exists int
 	err := database.DB.QueryRow(`
 		SELECT COUNT(*) FROM university WHERE university_id = ?
@@ -46,7 +45,6 @@ func AddDepartment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Insert department
 	res, err := database.DB.Exec(`
 		INSERT INTO department (name, university_id)
 		VALUES (?, ?)
@@ -162,9 +160,9 @@ func GetAllDepartments(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	type Department struct {
-		ID           int    `json:"department_id"`
-		Name         string `json:"name"`
-		UniversityName string    `json:"university_name"`
+		ID             int    `json:"department_id"`
+		Name           string `json:"name"`
+		UniversityName string `json:"university_name"`
 	}
 
 	var departments []Department
@@ -204,7 +202,6 @@ func AddCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	// ✅ Validate university exists
 	var exists int
 	err = tx.QueryRow(`
 		SELECT COUNT(*) FROM university WHERE university_id = ?
@@ -232,7 +229,6 @@ func AddCourse(w http.ResponseWriter, r *http.Request) {
 	// 2. Insert course_department mappings
 	for _, deptID := range req.Departments {
 
-		// ✅ Validate department belongs to same university
 		err := tx.QueryRow(`
 			SELECT COUNT(*) FROM department 
 			WHERE department_id = ? AND university_id = ?
@@ -312,7 +308,6 @@ func AddInstructor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Insert directly into instructor
 	res, err := database.DB.Exec(`
 		INSERT INTO instructor (first_name, last_name, university_id, department_id)
 		VALUES (?, ?, ?, ?)
@@ -370,7 +365,6 @@ func UpdateInstructor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Validate university exists
 	var exists int
 	err := database.DB.QueryRow(`
 		SELECT COUNT(*) FROM university WHERE university_id = ?
@@ -381,7 +375,6 @@ func UpdateInstructor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Validate department belongs to university
 	err = database.DB.QueryRow(`
 		SELECT COUNT(*) FROM department 
 		WHERE department_id = ? AND university_id = ?
