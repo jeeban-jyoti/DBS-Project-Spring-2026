@@ -20,8 +20,6 @@ func FetchAllBooks(w http.ResponseWriter, r *http.Request) {
 	subcategories := r.URL.Query().Get("subcategories")
 	keywords := r.URL.Query().Get("keywords")
 
-	// ✅ Added all columns from 'book' and 'category'
-	// ✅ Added GROUP_CONCAT for subcategories and keywords
 	query := `
 		SELECT 
 			b.book_id,
@@ -90,7 +88,7 @@ func FetchAllBooks(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var b BookFullResponse
-		var auths, subs, kws sql.NullString // Use NullString to prevent errors on empty joins
+		var auths, subs, kws sql.NullString
 
 		err := rows.Scan(
 			&b.BookID, &b.Title, &b.ISBN, &b.Publisher, &b.PublicationDate,
@@ -102,7 +100,6 @@ func FetchAllBooks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Convert pipe-separated strings from GROUP_CONCAT into Go slices
 		if auths.Valid && auths.String != "" {
 			b.Authors = strings.Split(auths.String, "|")
 		}
@@ -132,7 +129,6 @@ func FetchBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Temporary struct to handle the raw SQL GROUP_CONCAT strings and NULLs
 	var raw struct {
 		BookFullResponse
 		Authors       sql.NullString
@@ -140,7 +136,6 @@ func FetchBook(w http.ResponseWriter, r *http.Request) {
 		Keywords      sql.NullString
 	}
 
-	// 1. Get Book details, Category, and Many-to-Many aggregates
 	err := database.DB.QueryRow(`
 		SELECT 
 			b.book_id, b.title, b.isbn, b.publisher, b.publication_date, 
@@ -189,7 +184,6 @@ func FetchBook(w http.ResponseWriter, r *http.Request) {
 		response.Keywords = strings.Split(raw.Keywords.String, "|")
 	}
 
-	// 2. Fetch all individual reviews for this book
 	rows, err := database.DB.Query(`
 		SELECT student_id, rating, review_text, review_date 
 		FROM review 
@@ -198,11 +192,10 @@ func FetchBook(w http.ResponseWriter, r *http.Request) {
 	`, bookID)
 
 	if err != nil {
-		// We log the error but still return the book details
 		fmt.Printf("Error fetching reviews: %v\n", err)
 	} else {
 		defer rows.Close()
-		response.Reviews = []Review{} // Initialize to empty slice instead of null
+		response.Reviews = []Review{}
 		for rows.Next() {
 			var rev Review
 			if err := rows.Scan(&rev.StudentID, &rev.Rating, &rev.Text, &rev.Date); err == nil {
@@ -273,4 +266,67 @@ func FetchAllSubcategories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(subs)
+}
+
+func AddReview(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	email := r.Header.Get("user_email")
+	if email == "" {
+		http.Error(w, "User email missing in header", http.StatusBadRequest)
+		return
+	}
+
+	var studentID int
+	err := database.DB.QueryRow(`
+		SELECT s.student_id FROM student s
+		JOIN user u ON s.student_id = u.user_id
+		WHERE u.email = ?
+	`, email).Scan(&studentID)
+	if err != nil {
+		http.Error(w, "Student not found", http.StatusNotFound)
+		return
+	}
+
+	var req struct {
+		BookID     int    `json:"book_id"`
+		Rating     int    `json:"rating"`
+		ReviewText string `json:"review_text"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.BookID == 0 {
+		http.Error(w, "book_id is required", http.StatusBadRequest)
+		return
+	}
+
+	if req.Rating < 1 || req.Rating > 5 {
+		http.Error(w, "rating must be between 1 and 5", http.StatusBadRequest)
+		return
+	}
+
+	_, err = database.DB.Exec(`
+		INSERT INTO review (student_id, book_id, rating, review_text)
+		VALUES (?, ?, ?, ?)
+	`, studentID, req.BookID, req.Rating, req.ReviewText)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			http.Error(w, "You have already reviewed this book", http.StatusConflict)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Review added successfully"})
 }
